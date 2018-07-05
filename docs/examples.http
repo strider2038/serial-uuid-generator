@@ -1,0 +1,15 @@
+POST http://localhost:3000/rpc
+Content-Type: application/json
+
+{
+  "method": "Generator.Generate",
+  "params": [
+    {
+      "count": 2,
+      "sequence": "custom"
+    }
+  ],
+  "id": 1
+}
+
+###
