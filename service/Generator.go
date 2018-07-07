@@ -9,6 +9,10 @@ type Generator struct {
 	valueGenerator generator.ValueGenerator
 }
 
+func NewGenerator(valueGenerator generator.ValueGenerator) *Generator {
+	return &Generator{valueGenerator}
+}
+
 type GenerateCommandArguments struct {
 	Count    int    `json:"count"`
 	Sequence string `json:"sequence"`

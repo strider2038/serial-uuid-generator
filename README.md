@@ -4,8 +4,10 @@ Service for generating serial unique identifiers in UUID format. Can be used for
 
 ## Roadmap
 
-* [ ] storing sequence in PostgreSQL
-* [ ] generating sequential part by database sequence
+* [x] storing sequence in PostgreSQL
+* [x] generating sequential part by database sequence
+* [ ] request parameters validation
+* [ ] load config from environment
 * [ ] logging
 * [ ] statistics
 * [ ] concurrency testing
