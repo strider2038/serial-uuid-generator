@@ -11,39 +11,50 @@ type valueGeneratorMock struct {
 	mock.Mock
 }
 
-func (mock valueGeneratorMock) GetNextValue() string {
-	args := mock.Called()
+func (mock valueGeneratorMock) ReserveRange(sequence string, count int) {
+	mock.Called(sequence, count)
+}
+
+func (mock valueGeneratorMock) GetNextValue(sequence string) string {
+	args := mock.Called(sequence)
 
 	return args.String(0)
 }
 
 func TestGenerator_Generate_CountIsThreeAndSequenceIsEmptyString_SequenceIsDefaultAndThreeIdsGeneratedAndReturned(t *testing.T) {
+	const sequence = "default"
+	const count = 3
 	valueGenerator := valueGeneratorMock{}
 	generator := Generator{&valueGenerator}
-	arguments := GenerateCommandArguments{3, ""}
+	arguments := GenerateCommandArguments{count, ""}
 	request := http.Request{}
 	response := GenerateResponse{}
-	valueGenerator.On("GetNextValue").Return("value")
+	valueGenerator.On("GetNextValue", sequence).Return("value")
+	valueGenerator.On("ReserveRange", sequence, count).Return()
 
 	generator.Generate(&request, &arguments, &response)
 
 	valueGenerator.AssertExpectations(t)
-	assert.Equal(t, 3, len(response.Ids))
-	assert.Equal(t, "default", response.Sequence)
+	assert.Equal(t, count, len(response.Ids))
+	assert.Equal(t, sequence, response.Sequence)
 }
 
 func TestGenerator_Generate_CountIsOneAndSequenceIsCustom_SequenceIsCustomAndOneIdGeneratedAndReturned(t *testing.T) {
+	const sequence = "custom"
+	const count = 1
+	const value = "value"
 	valueGenerator := valueGeneratorMock{}
 	generator := Generator{&valueGenerator}
-	arguments := GenerateCommandArguments{1, "custom"}
+	arguments := GenerateCommandArguments{count, sequence}
 	request := http.Request{}
 	response := GenerateResponse{}
-	valueGenerator.On("GetNextValue").Return("value")
+	valueGenerator.On("GetNextValue", sequence).Return(value)
+	valueGenerator.On("ReserveRange", sequence, count).Return()
 
 	generator.Generate(&request, &arguments, &response)
 
 	valueGenerator.AssertExpectations(t)
-	assert.Equal(t, 1, len(response.Ids))
-	assert.Equal(t, "value", response.Ids[0])
-	assert.Equal(t, "custom", response.Sequence)
+	assert.Equal(t, count, len(response.Ids))
+	assert.Equal(t, value, response.Ids[0])
+	assert.Equal(t, sequence, response.Sequence)
 }

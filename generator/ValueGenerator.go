@@ -1,5 +1,6 @@
 package generator
 
 type ValueGenerator interface {
-	GetNextValue() string
+	ReserveRange(sequence string, count int)
+	GetNextValue(sequence string) string
 }

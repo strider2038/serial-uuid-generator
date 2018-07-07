@@ -27,9 +27,10 @@ func (generator *Generator) Generate(r *http.Request, args *GenerateCommandArgum
 	}
 
 	ids := make([]string, 0)
+	generator.valueGenerator.ReserveRange(sequence, args.Count)
 
 	for i := 0; i < args.Count; i++ {
-		ids = append(ids, generator.valueGenerator.GetNextValue())
+		ids = append(ids, generator.valueGenerator.GetNextValue(sequence))
 	}
 
 	response.Sequence = sequence
