@@ -1,12 +1,13 @@
 package service
 
 import (
-	"crypto/rand"
-	"fmt"
+	"github.com/strider2038/serial-uuid-generator/generator"
 	"net/http"
 )
 
-type Generator struct{}
+type Generator struct {
+	valueGenerator generator.ValueGenerator
+}
 
 type GenerateCommandArguments struct {
 	Count    int    `json:"count"`
@@ -28,30 +29,7 @@ func (generator *Generator) Generate(r *http.Request, args *GenerateCommandArgum
 	ids := make([]string, 0)
 
 	for i := 0; i < args.Count; i++ {
-		delimitersMap := map[int]bool{
-			4:  true,
-			6:  true,
-			8:  true,
-			10: true,
-		}
-
-		randomBytesLength := 16
-		randomBytes := make([]byte, randomBytesLength)
-		_, err := rand.Read(randomBytes)
-		if err != nil {
-			return err
-		}
-
-		uuid := ""
-
-		for j := 0; j < randomBytesLength; j++ {
-			if delimitersMap[j] {
-				uuid += "-"
-			}
-			uuid += fmt.Sprintf("%02x", randomBytes[j])
-		}
-
-		ids = append(ids, uuid)
+		ids = append(ids, generator.valueGenerator.GetNextValue())
 	}
 
 	response.Sequence = sequence
