@@ -11,7 +11,7 @@ type valueGeneratorMock struct {
 	mock.Mock
 }
 
-func (mock valueGeneratorMock) ReserveRange(sequence string, count int) {
+func (mock valueGeneratorMock) ReserveRange(sequence string, count uint64) {
 	mock.Called(sequence, count)
 }
 
@@ -30,7 +30,7 @@ func TestGenerator_Generate_CountIsThreeAndSequenceIsEmptyString_SequenceIsDefau
 	request := http.Request{}
 	response := GenerateResponse{}
 	valueGenerator.On("GetNextValue", sequence).Return("value")
-	valueGenerator.On("ReserveRange", sequence, count).Return()
+	valueGenerator.On("ReserveRange", sequence, uint64(count)).Return()
 
 	generator.Generate(&request, &arguments, &response)
 
@@ -49,7 +49,7 @@ func TestGenerator_Generate_CountIsOneAndSequenceIsCustom_SequenceIsCustomAndOne
 	request := http.Request{}
 	response := GenerateResponse{}
 	valueGenerator.On("GetNextValue", sequence).Return(value)
-	valueGenerator.On("ReserveRange", sequence, count).Return()
+	valueGenerator.On("ReserveRange", sequence, uint64(count)).Return()
 
 	generator.Generate(&request, &arguments, &response)
 
