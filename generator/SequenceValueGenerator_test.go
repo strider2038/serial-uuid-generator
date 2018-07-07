@@ -30,10 +30,6 @@ type SequenceValueGeneratorSuite struct {
 	rangeStepsToReserve map[string]uint64
 }
 
-func TestSequenceValueGeneratorSuite(t *testing.T) {
-	suite.Run(t, new(SequenceValueGeneratorSuite))
-}
-
 func (suite *SequenceValueGeneratorSuite) SetupTest() {
 	suite.valueStorage = valueStorageMock{}
 	suite.rangeStep = testRangeStep
@@ -48,6 +44,18 @@ func (suite *SequenceValueGeneratorSuite) createSequenceValueGenerator() *sequen
 		suite.sequences,
 		suite.rangeStepsToReserve,
 	}
+}
+
+func TestSequenceValueGeneratorSuite(t *testing.T) {
+	suite.Run(t, new(SequenceValueGeneratorSuite))
+}
+
+func TestNewSequenceValueGenerator(t *testing.T) {
+	valueStorage := valueStorageMock{}
+
+	valueGenerator := NewSequenceValueGenerator(&valueStorage, testRangeStep)
+
+	assert.NotNil(t, valueGenerator)
 }
 
 func (suite *SequenceValueGeneratorSuite) TestSequenceValueGenerator_ReserveRange_NoRangeStepsInMapAndCount_RangeStepIsSetToUpperEdge() {
