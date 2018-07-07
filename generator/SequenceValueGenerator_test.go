@@ -3,7 +3,13 @@ package generator
 import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 	"testing"
+)
+
+const (
+	testSequence  = "testSequence"
+	testRangeStep = 100
 )
 
 type valueStorageMock struct {
@@ -16,7 +22,35 @@ func (mock *valueStorageMock) GetNextRangeForSequence(sequence string, count uin
 	return args.Get(0).(SequenceRange)
 }
 
-func TestSequenceValueGenerator_ReserveRange_NoRangeStepsInMapAndCount_RangeStepIsSetToUpperEdge(t *testing.T) {
+type SequenceValueGeneratorSuite struct {
+	suite.Suite
+	valueStorage        valueStorageMock
+	rangeStep           uint64
+	sequences           map[string]*SequenceRange
+	rangeStepsToReserve map[string]uint64
+}
+
+func TestSequenceValueGeneratorSuite(t *testing.T) {
+	suite.Run(t, new(SequenceValueGeneratorSuite))
+}
+
+func (suite *SequenceValueGeneratorSuite) SetupTest() {
+	suite.valueStorage = valueStorageMock{}
+	suite.rangeStep = testRangeStep
+	suite.sequences = make(map[string]*SequenceRange)
+	suite.rangeStepsToReserve = make(map[string]uint64)
+}
+
+func (suite *SequenceValueGeneratorSuite) createSequenceValueGenerator() *sequenceValueGenerator {
+	return &sequenceValueGenerator{
+		&suite.valueStorage,
+		suite.rangeStep,
+		suite.sequences,
+		suite.rangeStepsToReserve,
+	}
+}
+
+func (suite *SequenceValueGeneratorSuite) TestSequenceValueGenerator_ReserveRange_NoRangeStepsInMapAndCount_RangeStepIsSetToUpperEdge() {
 	tests := []struct {
 		name              string
 		count             uint64
@@ -50,147 +84,98 @@ func TestSequenceValueGenerator_ReserveRange_NoRangeStepsInMapAndCount_RangeStep
 	}
 
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			const sequence = "sequence"
-			const rangeStep = 100
-			valueStorage := valueStorageMock{}
-			sequences := make(map[string]*SequenceRange)
-			rangeStepsToReserve := make(map[string]uint64)
-			valueGenerator := sequenceValueGenerator{
-				&valueStorage,
-				rangeStep,
-				sequences,
-				rangeStepsToReserve,
-			}
+		suite.T().Run(test.name, func(t *testing.T) {
+			valueGenerator := suite.createSequenceValueGenerator()
 
-			valueGenerator.ReserveRange(sequence, test.count)
+			valueGenerator.ReserveRange(testSequence, test.count)
 
-			assert.Equal(t, uint64(test.reservedRangeStep), rangeStepsToReserve[sequence])
+			assert.Equal(suite.T(), uint64(test.reservedRangeStep), suite.rangeStepsToReserve[testSequence])
 		})
 	}
 }
 
-func TestSequenceValueGenerator_GetNextValue_NotInitializedSequence_RangeCreatedAndFirstValueReturned(t *testing.T) {
-	const sequence = "sequence"
-	const rangeStep = 100
-	valueStorage := valueStorageMock{}
-	sequences := make(map[string]*SequenceRange)
-	rangeStepsToReserve := make(map[string]uint64)
-	valueGenerator := sequenceValueGenerator{
-		&valueStorage,
-		rangeStep,
-		sequences,
-		rangeStepsToReserve,
-	}
-	valueStorage.On("GetNextRangeForSequence", sequence, uint64(rangeStep)).Return(SequenceRange{
+func (suite *SequenceValueGeneratorSuite) TestSequenceValueGenerator_GetNextValue_NotInitializedSequence_RangeCreatedAndFirstValueReturned() {
+	valueGenerator := suite.createSequenceValueGenerator()
+	suite.valueStorage.On("GetNextRangeForSequence", testSequence, uint64(testRangeStep)).Return(SequenceRange{
 		0,
 		99,
 	})
 
-	value := valueGenerator.GetNextValue(sequence)
+	value := valueGenerator.GetNextValue(testSequence)
 
-	valueStorage.AssertExpectations(t)
-	assert.Regexp(t, "[0-9a-f]{8}-[0-9a-f]{4}-0[0-9a-f]{3}-0000-000000000001", value)
-	assert.Equal(t, uint64(1), sequences[sequence].CurrentValue)
+	suite.valueStorage.AssertExpectations(suite.T())
+	assert.Regexp(suite.T(), "[0-9a-f]{8}-[0-9a-f]{4}-0[0-9a-f]{3}-0000-000000000001", value)
+	assert.Equal(suite.T(), uint64(1), suite.sequences[testSequence].CurrentValue)
 }
 
-func TestSequenceValueGenerator_GetNextValue_InitialSequence_FirstValueReturned(t *testing.T) {
-	const sequence = "sequence"
-	const rangeStep = 100
-	valueStorage := valueStorageMock{}
-	sequences := make(map[string]*SequenceRange)
-	sequences[sequence] = &SequenceRange{
-		0,
-		100,
-	}
-	rangeStepsToReserve := make(map[string]uint64)
-	valueGenerator := sequenceValueGenerator{
-		&valueStorage,
-		rangeStep,
-		sequences,
-		rangeStepsToReserve,
+func (suite *SequenceValueGeneratorSuite) TestSequenceValueGenerator_GetNextValue_RangeInitialized_NextValueReturned() {
+	tests := []struct {
+		name                        string
+		currentValue                uint64
+		expectedNextValue           uint64
+		expectedReturnedValueRegExp string
+	}{
+		{
+			"Initial sequence | Next value is 1",
+			0,
+			1,
+			"[0-9a-f]{8}-[0-9a-f]{4}-0[0-9a-f]{3}-0000-000000000001",
+		},
+		{
+			"Sequence with full lower part | Next value is valid",
+			0x0000FFFFFFFFFFFF,
+			0x0001000000000000,
+			"[0-9a-f]{8}-[0-9a-f]{4}-0[0-9a-f]{3}-0001-000000000000",
+		},
 	}
 
-	value := valueGenerator.GetNextValue(sequence)
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			suite.sequences[testSequence] = &SequenceRange{
+				test.currentValue,
+				0xFFFFFFFFFFFFFFFF,
+			}
+			valueGenerator := suite.createSequenceValueGenerator()
 
-	assert.Regexp(t, "[0-9a-f]{8}-[0-9a-f]{4}-0[0-9a-f]{3}-0000-000000000001", value)
-	assert.Equal(t, uint64(1), sequences[sequence].CurrentValue)
+			value := valueGenerator.GetNextValue(testSequence)
+
+			assert.Regexp(suite.T(), test.expectedReturnedValueRegExp, value)
+			assert.Equal(suite.T(), test.expectedNextValue, suite.sequences[testSequence].CurrentValue)
+		})
+	}
 }
 
-func TestSequenceValueGenerator_GetNextValue_SequenceRangeIsFull_NewRangeCreatedAndNextValueReturned(t *testing.T) {
-	const sequence = "sequence"
-	const rangeStep = 100
-	valueStorage := valueStorageMock{}
-	sequences := make(map[string]*SequenceRange)
-	sequences[sequence] = &SequenceRange{
+func (suite *SequenceValueGeneratorSuite) TestSequenceValueGenerator_GetNextValue_SequenceRangeIsFull_NewRangeCreatedAndNextValueReturned() {
+	suite.sequences[testSequence] = &SequenceRange{
 		99,
 		99,
 	}
-	rangeStepsToReserve := make(map[string]uint64)
-	valueGenerator := sequenceValueGenerator{
-		&valueStorage,
-		rangeStep,
-		sequences,
-		rangeStepsToReserve,
-	}
-	valueStorage.On("GetNextRangeForSequence", sequence, uint64(rangeStep)).Return(SequenceRange{
+	valueGenerator := suite.createSequenceValueGenerator()
+	suite.valueStorage.On("GetNextRangeForSequence", testSequence, uint64(testRangeStep)).Return(SequenceRange{
 		200,
 		300,
 	})
 
-	value := valueGenerator.GetNextValue(sequence)
+	value := valueGenerator.GetNextValue(testSequence)
 
-	valueStorage.AssertExpectations(t)
-	assert.Regexp(t, "[0-9a-f]{8}-[0-9a-f]{4}-0[0-9a-f]{3}-0000-0000000000c8", value)
-	assert.Equal(t, uint64(200), sequences[sequence].CurrentValue)
+	suite.valueStorage.AssertExpectations(suite.T())
+	assert.Regexp(suite.T(), "[0-9a-f]{8}-[0-9a-f]{4}-0[0-9a-f]{3}-0000-0000000000c8", value)
+	assert.Equal(suite.T(), uint64(200), suite.sequences[testSequence].CurrentValue)
 }
 
-func TestSequenceValueGenerator_GetNextValue_SequenceWithFullLowerPart_NextValueReturned(t *testing.T) {
-	const sequence = "sequence"
-	const rangeStep = 100
-	valueStorage := valueStorageMock{}
-	sequences := make(map[string]*SequenceRange)
-	sequences[sequence] = &SequenceRange{
-		0x0000FFFFFFFFFFFF,
-		0xFFFFFFFFFFFFFFFF,
-	}
-	rangeStepsToReserve := make(map[string]uint64)
-	valueGenerator := sequenceValueGenerator{
-		&valueStorage,
-		rangeStep,
-		sequences,
-		rangeStepsToReserve,
-	}
-
-	value := valueGenerator.GetNextValue(sequence)
-
-	assert.Regexp(t, "[0-9a-f]{8}-[0-9a-f]{4}-0[0-9a-f]{3}-0001-000000000000", value)
-	assert.Equal(t, uint64(0x1000000000000), sequences[sequence].CurrentValue)
-}
-
-func TestSequenceValueGenerator_GetNextValue_NotInitializedSequenceAndReservedRangeGreaterThanRangeStep_LongerRangeCreatedAndFirstValueReturned(t *testing.T) {
-	const sequence = "sequence"
-	const rangeStep = 100
+func (suite *SequenceValueGeneratorSuite) TestSequenceValueGenerator_GetNextValue_NotInitializedSequenceAndReservedRangeGreaterThanRangeStep_LongerRangeCreatedAndFirstValueReturned() {
 	const reservedRangeStep = 200
-	valueStorage := valueStorageMock{}
-	sequences := make(map[string]*SequenceRange)
-	rangeStepsToReserve := make(map[string]uint64)
-	rangeStepsToReserve[sequence] = reservedRangeStep
-	valueGenerator := sequenceValueGenerator{
-		&valueStorage,
-		rangeStep,
-		sequences,
-		rangeStepsToReserve,
-	}
-	valueStorage.On("GetNextRangeForSequence", sequence, uint64(reservedRangeStep)).Return(SequenceRange{
+	suite.rangeStepsToReserve[testSequence] = reservedRangeStep
+	valueGenerator := suite.createSequenceValueGenerator()
+	suite.valueStorage.On("GetNextRangeForSequence", testSequence, uint64(reservedRangeStep)).Return(SequenceRange{
 		0,
 		199,
 	})
 
-	value := valueGenerator.GetNextValue(sequence)
+	value := valueGenerator.GetNextValue(testSequence)
 
-	valueStorage.AssertExpectations(t)
-	assert.Regexp(t, "[0-9a-f]{8}-[0-9a-f]{4}-0[0-9a-f]{3}-0000-000000000001", value)
-	assert.Equal(t, uint64(1), sequences[sequence].CurrentValue)
-	assert.Empty(t, rangeStepsToReserve[sequence])
+	suite.valueStorage.AssertExpectations(suite.T())
+	assert.Regexp(suite.T(), "[0-9a-f]{8}-[0-9a-f]{4}-0[0-9a-f]{3}-0000-000000000001", value)
+	assert.Equal(suite.T(), uint64(1), suite.sequences[testSequence].CurrentValue)
+	assert.Empty(suite.T(), suite.rangeStepsToReserve[testSequence])
 }
