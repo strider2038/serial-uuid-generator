@@ -58,3 +58,46 @@ func TestGenerator_Generate_CountIsOneAndSequenceIsCustom_SequenceIsCustomAndOne
 	assert.Equal(t, value, response.Ids[0])
 	assert.Equal(t, sequence, response.Sequence)
 }
+
+func TestGenerator_Generate_InvalidParameters_ErrorReturned(t *testing.T) {
+	tests := []struct {
+		name     string
+		count    int
+		sequence string
+	}{
+		{
+			"zero count",
+			0,
+			"default",
+		},
+		{
+			"count more than 100.000",
+			100001,
+			"default",
+		},
+		{
+			"too long sequence name",
+			1,
+			"too_long_sequence_name_0123456789",
+		},
+		{
+			"invalid symbols in sequence name",
+			1,
+			"(invalid*symbols^in&%name)",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			valueGenerator := valueGeneratorMock{}
+			generator := Generator{&valueGenerator}
+			arguments := GenerateCommandArguments{test.count, test.sequence}
+			request := http.Request{}
+			response := GenerateResponse{}
+
+			err := generator.Generate(&request, &arguments, &response)
+
+			assert.Error(t, err)
+		})
+	}
+}
