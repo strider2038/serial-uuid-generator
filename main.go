@@ -6,11 +6,7 @@ import (
 )
 
 func main() {
-	configuration := config.Config{
-		DatabaseUrl: "postgres://user:password@localhost/generator?sslmode=disable",
-		TableName:   "public.uuid_sequence",
-		RangeStep:   100,
-	}
+	configuration := config.LoadConfigFromEnvironment()
 	generatorServer := server.NewUUIDGeneratorServer(configuration)
 	generatorServer.Run()
 }
