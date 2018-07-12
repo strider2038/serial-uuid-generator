@@ -4,7 +4,7 @@ Service for generating serial unique identifiers in UUID format. Can be used for
 
 ## How to use
 
-### Build from binaries
+### Build from source
 
 Build and run go application. Setup connection to PostgreSQL database via environment variable `UUIDGEN_DATABASE_URL`.
 

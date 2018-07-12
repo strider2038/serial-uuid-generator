@@ -1,8 +1,11 @@
 package service
 
 import (
+	"fmt"
 	"github.com/asaskevich/govalidator"
+	log "github.com/sirupsen/logrus"
 	"github.com/strider2038/serial-uuid-generator/generator"
+	"math/rand"
 	"net/http"
 )
 
@@ -24,10 +27,18 @@ type GenerateResponse struct {
 	Ids      []string `json:"ids"`
 }
 
-func (generator *Generator) Generate(r *http.Request, args *GenerateCommandArguments, response *GenerateResponse) error {
+func (generator *Generator) Generate(request *http.Request, args *GenerateCommandArguments, response *GenerateResponse) error {
+	logger := log.WithFields(log.Fields{
+		"id":       fmt.Sprintf("%x", rand.Uint64()),
+		"count":    args.Count,
+		"sequence": args.Sequence,
+	})
+
 	_, err := govalidator.ValidateStruct(args)
 
 	if err != nil {
+		logger.Debug("Invalid parameters in request: ", err)
+
 		return err
 	}
 
